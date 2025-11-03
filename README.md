@@ -12,6 +12,6 @@ This Book Management System provides a complete solution for library management 
 - Credentials for Testing:
   ```
   Email: admin@library.com
-  Password: admin123
+  Password: Admin@123456
   ```
   
