@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { validateEmail, validatePassword, getErrorMessage } from '../utils/helpers';
 import apiService from '../services/api';
+import usePopup from '../hooks/usePopup';
+import Popup from './Popup';
 
-const Login = ({ onLogin, onSwitchToRegister }) => {
+const Login = ({ onLogin }) => {
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-  const [apiError, setApiError] = useState('');
+  const { popup, showError, hidePopup } = usePopup();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -26,9 +29,9 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
       }));
     }
 
-    // Clear API error when user makes changes
-    if (apiError) {
-      setApiError('');
+    // Clear popup when user makes changes
+    if (popup.isOpen) {
+      hidePopup();
     }
   };
 
@@ -57,7 +60,6 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
     }
 
     setIsLoading(true);
-    setApiError('');
 
     try {
       const response = await apiService.login({
@@ -68,7 +70,7 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
       // Call parent component's onLogin function
       onLogin(response.user);
     } catch (error) {
-      setApiError(getErrorMessage(error));
+      showError(getErrorMessage(error), 'Login Failed');
     } finally {
       setIsLoading(false);
     }
@@ -79,11 +81,7 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
       <form className="auth-form" onSubmit={handleSubmit}>
         <h2 className="auth-title">Login to Book Management</h2>
         
-        {apiError && (
-          <div className="alert alert-error">
-            {apiError}
-          </div>
-        )}
+
 
         <div className="form-group">
           <label htmlFor="email" className="form-label">
@@ -135,23 +133,28 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
         <div className="auth-link">
           <p>
             Don't have an account?{' '}
-            <button
-              type="button"
-              onClick={onSwitchToRegister}
+            <Link 
+              to="/register" 
               style={{ 
-                background: 'none', 
-                border: 'none', 
                 color: '#059669', 
-                cursor: 'pointer',
-                textDecoration: 'underline'
+                textDecoration: 'none'
               }}
-              disabled={isLoading}
             >
               Register here
-            </button>
+            </Link>
           </p>
         </div>
       </form>
+      
+      <Popup
+        isOpen={popup.isOpen}
+        onClose={hidePopup}
+        type={popup.type}
+        title={popup.title}
+        message={popup.message}
+        autoClose={popup.autoClose}
+        autoCloseDelay={popup.autoCloseDelay}
+      />
     </div>
   );
 };

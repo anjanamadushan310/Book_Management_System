@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { validateEmail, validatePassword, validateName, getErrorMessage } from '../utils/helpers';
+import { Link } from 'react-router-dom';
+import { validateEmail, validatePassword, validateName, getErrorMessage, getPasswordValidationError } from '../utils/helpers';
 import apiService from '../services/api';
+import usePopup from '../hooks/usePopup';
+import Popup from './Popup';
 
-const Register = ({ onRegister, onSwitchToLogin }) => {
+const Register = ({ onRegister }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -11,7 +14,7 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-  const [apiError, setApiError] = useState('');
+  const { popup, showError, showSuccess, hidePopup } = usePopup();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -28,9 +31,9 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
       }));
     }
 
-    // Clear API error when user makes changes
-    if (apiError) {
-      setApiError('');
+    // Clear popup when user makes changes
+    if (popup.isOpen) {
+      hidePopup();
     }
   };
 
@@ -49,10 +52,9 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
       newErrors.email = 'Please enter a valid email address';
     }
 
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (!validatePassword(formData.password)) {
-      newErrors.password = 'Password must be at least 6 characters long';
+    const passwordError = getPasswordValidationError(formData.password);
+    if (passwordError) {
+      newErrors.password = passwordError;
     }
 
     if (!formData.confirmPassword) {
@@ -73,7 +75,6 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
     }
 
     setIsLoading(true);
-    setApiError('');
 
     try {
       const response = await apiService.register({
@@ -82,10 +83,14 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
         password: formData.password
       });
 
-      // Call parent component's onRegister function
-      onRegister(response.user);
+      showSuccess('Account created successfully! You can now login.', 'Registration Complete');
+      
+      // Delay the navigation to allow user to see the success message
+      setTimeout(() => {
+        onRegister(response.user);
+      }, 2000);
     } catch (error) {
-      setApiError(getErrorMessage(error));
+      showError(getErrorMessage(error), 'Registration Failed');
     } finally {
       setIsLoading(false);
     }
@@ -96,86 +101,97 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
       <form className="auth-form" onSubmit={handleSubmit}>
         <h2 className="auth-title">Create Your Account</h2>
         
-        {apiError && (
-          <div className="alert alert-error">
-            {apiError}
+
+
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="name" className="form-label">
+              Full Name
+            </label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              className={`form-input ${errors.name ? 'error' : ''}`}
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="Enter your full name"
+              disabled={isLoading}
+            />
+            {errors.name && (
+              <div className="error-message">{errors.name}</div>
+            )}
           </div>
-        )}
 
-        <div className="form-group">
-          <label htmlFor="name" className="form-label">
-            Full Name
-          </label>
-          <input
-            type="text"
-            id="name"
-            name="name"
-            className={`form-input ${errors.name ? 'error' : ''}`}
-            value={formData.name}
-            onChange={handleChange}
-            placeholder="Enter your full name"
-            disabled={isLoading}
-          />
-          {errors.name && (
-            <div className="error-message">{errors.name}</div>
-          )}
+          <div className="form-group">
+            <label htmlFor="email" className="form-label">
+              Email Address
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              className={`form-input ${errors.email ? 'error' : ''}`}
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="Enter your email"
+              disabled={isLoading}
+            />
+            {errors.email && (
+              <div className="error-message">{errors.email}</div>
+            )}
+          </div>
         </div>
 
-        <div className="form-group">
-          <label htmlFor="email" className="form-label">
-            Email Address
-          </label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            className={`form-input ${errors.email ? 'error' : ''}`}
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="Enter your email"
-            disabled={isLoading}
-          />
-          {errors.email && (
-            <div className="error-message">{errors.email}</div>
-          )}
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="password" className="form-label">
+              Password
+            </label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              className={`form-input ${errors.password ? 'error' : ''}`}
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="Create a strong password"
+              disabled={isLoading}
+            />
+            {errors.password && (
+              <div className="error-message">{errors.password}</div>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="confirmPassword" className="form-label">
+              Confirm Password
+            </label>
+            <input
+              type="password"
+              id="confirmPassword"
+              name="confirmPassword"
+              className={`form-input ${errors.confirmPassword ? 'error' : ''}`}
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              placeholder="Confirm your password"
+              disabled={isLoading}
+            />
+            {errors.confirmPassword && (
+              <div className="error-message">{errors.confirmPassword}</div>
+            )}
+          </div>
         </div>
 
-        <div className="form-group">
-          <label htmlFor="password" className="form-label">
-            Password
-          </label>
-          <input
-            type="password"
-            id="password"
-            name="password"
-            className={`form-input ${errors.password ? 'error' : ''}`}
-            value={formData.password}
-            onChange={handleChange}
-            placeholder="Enter your password (min 6 characters)"
-            disabled={isLoading}
-          />
-          {errors.password && (
-            <div className="error-message">{errors.password}</div>
-          )}
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="confirmPassword" className="form-label">
-            Confirm Password
-          </label>
-          <input
-            type="password"
-            id="confirmPassword"
-            name="confirmPassword"
-            className={`form-input ${errors.confirmPassword ? 'error' : ''}`}
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            placeholder="Confirm your password"
-            disabled={isLoading}
-          />
-          {errors.confirmPassword && (
-            <div className="error-message">{errors.confirmPassword}</div>
-          )}
+        <div className="password-requirements">
+          <small>Password must contain:</small>
+          <ul>
+            <li className={formData.password.length >= 8 ? 'valid' : ''}>At least 8 characters</li>
+            <li className={/[A-Z]/.test(formData.password) ? 'valid' : ''}>One uppercase letter</li>
+            <li className={/[a-z]/.test(formData.password) ? 'valid' : ''}>One lowercase letter</li>
+            <li className={/\d/.test(formData.password) ? 'valid' : ''}>One number</li>
+            <li className={/[!@#$%^&*(),.?":{}|<>]/.test(formData.password) ? 'valid' : ''}>One special character</li>
+          </ul>
         </div>
 
         <button
@@ -190,23 +206,28 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
         <div className="auth-link">
           <p>
             Already have an account?{' '}
-            <button
-              type="button"
-              onClick={onSwitchToLogin}
+            <Link 
+              to="/login" 
               style={{ 
-                background: 'none', 
-                border: 'none', 
                 color: '#059669', 
-                cursor: 'pointer',
-                textDecoration: 'underline'
+                textDecoration: 'none'
               }}
-              disabled={isLoading}
             >
               Sign in here
-            </button>
+            </Link>
           </p>
         </div>
       </form>
+      
+      <Popup
+        isOpen={popup.isOpen}
+        onClose={hidePopup}
+        type={popup.type}
+        title={popup.title}
+        message={popup.message}
+        autoClose={popup.autoClose}
+        autoCloseDelay={popup.autoCloseDelay}
+      />
     </div>
   );
 };

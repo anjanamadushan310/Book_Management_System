@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
 import { Exclude } from 'class-transformer';
 
 export enum UserRole {
@@ -27,6 +27,9 @@ export class User {
     default: UserRole.USER,
   })
   role: UserRole;
+
+  @OneToMany('BorrowRecord', 'user')
+  borrowRecords: any[];
 
   @CreateDateColumn()
   createdAt: Date;

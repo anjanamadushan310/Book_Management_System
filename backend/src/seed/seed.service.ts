@@ -27,9 +27,9 @@ export class SeedService implements OnApplicationBootstrap {
 
   private async seedUsers() {
     // Always ensure hardcoded librarian exists using environment variables
-    const librarianEmail = this.configService.get<string>('LIBRARIAN_EMAIL', 'librarian@library.com');
-    const librarianPassword = this.configService.get<string>('LIBRARIAN_PASSWORD', 'admin123');
-    const librarianName = this.configService.get<string>('LIBRARIAN_NAME', 'System Librarian');
+    const librarianEmail = this.configService.get<string>('LIBRARIAN_EMAIL', 'admin@library.com');
+    const librarianPassword = this.configService.get<string>('LIBRARIAN_PASSWORD', 'Admin@123456');
+    const librarianName = this.configService.get<string>('LIBRARIAN_NAME', 'System Administrator');
 
     const existingLibrarian = await this.userRepository.findOne({
       where: { email: librarianEmail },
@@ -54,7 +54,7 @@ export class SeedService implements OnApplicationBootstrap {
     // Check if we need to create a sample user (for testing)
     const userCount = await this.userRepository.count();
     if (userCount === 1) { // Only librarian exists
-      const hashedUserPassword = await bcrypt.hash('user123', 12);
+      const hashedUserPassword = await bcrypt.hash('TestUser@123', 12);
       
       const sampleUser = this.userRepository.create({
         email: 'user@library.com',

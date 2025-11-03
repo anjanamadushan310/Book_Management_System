@@ -1,15 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { getUser, isAuthenticated } from './utils/helpers';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { getUser, isAuthenticated, isLibrarian, isTokenExpired, handleTokenExpiration } from './utils/helpers';
 import apiService from './services/api';
+
+// Auth Components
 import Login from './components/Login';
 import Register from './components/Register';
+
+// Dashboard Components
+import LibrarianDashboard from './components/LibrarianDashboard';
+import UserDashboard from './components/UserDashboard';
+
 import './index.css';
 
-function App() {
+// Inner component that can use navigation hooks
+function AppContent() {
   const [user, setUser] = useState(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [showRegister, setShowRegister] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     // Check if user is already logged in on app start
@@ -18,7 +27,6 @@ function App() {
         const userData = getUser();
         if (userData) {
           setUser(userData);
-          setIsLoggedIn(true);
         }
       }
       setIsLoading(false);
@@ -27,37 +35,71 @@ function App() {
     checkAuth();
   }, []);
 
+  useEffect(() => {
+    // Listen for custom token expiration event
+    const handleTokenExpired = () => {
+      console.log('Token expiration event received - redirecting to login');
+      setUser(null);
+      navigate('/login', { replace: true });
+    };
+
+    window.addEventListener('tokenExpired', handleTokenExpired);
+
+    // Set up periodic token expiration check (every 5 seconds)
+    const tokenCheckInterval = setInterval(() => {
+      console.log('Checking token expiration...');
+      const authenticated = isAuthenticated();
+      console.log('Is authenticated:', authenticated, 'Current user:', !!user);
+      
+      // Note: isAuthenticated() will automatically trigger handleTokenExpiration() if token is expired
+      // so we don't need additional logic here
+    }, 5000); // Check every 5 seconds for testing
+
+    // Cleanup interval and event listener on component unmount
+    return () => {
+      clearInterval(tokenCheckInterval);
+      window.removeEventListener('tokenExpired', handleTokenExpired);
+    };
+  }, []); // Empty dependency array to run only once
+
   const handleLogin = (userData) => {
     setUser(userData);
-    setIsLoggedIn(true);
-    setShowRegister(false);
   };
 
   const handleRegister = (userData) => {
     setUser(userData);
-    setIsLoggedIn(true);
-    setShowRegister(false);
   };
 
   const handleLogout = async () => {
     try {
       await apiService.logout();
       setUser(null);
-      setIsLoggedIn(false);
     } catch (error) {
       console.error('Logout error:', error);
       // Still log out locally even if API call fails
       setUser(null);
-      setIsLoggedIn(false);
     }
   };
 
-  const switchToRegister = () => {
-    setShowRegister(true);
+  // Protected Route Component
+  const ProtectedRoute = ({ children, requireLibrarian = false }) => {
+    if (!isAuthenticated()) {
+      return <Navigate to="/login" replace />;
+    }
+    
+    if (requireLibrarian && !isLibrarian()) {
+      return <Navigate to="/dashboard" replace />;
+    }
+    
+    return children;
   };
 
-  const switchToLogin = () => {
-    setShowRegister(false);
+  // Public Route Component (redirect if already logged in)
+  const PublicRoute = ({ children }) => {
+    if (isAuthenticated()) {
+      return <Navigate to="/dashboard" replace />;
+    }
+    return children;
   };
 
   if (isLoading) {
@@ -69,103 +111,91 @@ function App() {
     );
   }
 
-  if (!isLoggedIn) {
-    return showRegister ? (
-      <Register 
-        onRegister={handleRegister}
-        onSwitchToLogin={switchToLogin}
-      />
-    ) : (
-      <Login 
-        onLogin={handleLogin}
-        onSwitchToRegister={switchToRegister}
-      />
-    );
-  }
-
   return (
-    <div className="app">
-      {/* Header */}
-      <header className="header">
-        <div className="container">
-          <div className="header-content">
-            <h1 className="logo">Book Management System</h1>
-            <nav className="nav">
-              <span className="nav-link">
-                Welcome, {user?.name}
-              </span>
-              <span className="nav-link">
-                Role: {user?.role === 'librarian' ? 'Librarian' : 'User'}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="btn btn-secondary"
-                style={{ marginLeft: '1rem' }}
-              >
-                Logout
-              </button>
-            </nav>
-          </div>
-        </div>
-      </header>
+    <div className="App">
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/login" element={
+          <PublicRoute>
+            <Login onLogin={handleLogin} />
+          </PublicRoute>
+        } />
+        
+        <Route path="/register" element={
+          <PublicRoute>
+            <Register onRegister={handleRegister} />
+          </PublicRoute>
+        } />
 
-      {/* Main Content */}
-      <main className="container" style={{ marginTop: '2rem' }}>
-        <div className="card">
-          <div className="card-header">
-            <h2>Dashboard</h2>
-          </div>
-          <div className="card-body">
-            <div className="alert alert-success">
-              <h3>🎉 Authentication Successful!</h3>
-              <p>You have successfully logged in to the Book Management System.</p>
-              <div style={{ marginTop: '1rem' }}>
-                <strong>Your Account Details:</strong>
-                <ul style={{ marginTop: '0.5rem', marginLeft: '1rem' }}>
-                  <li><strong>Name:</strong> {user?.name}</li>
-                  <li><strong>Email:</strong> {user?.email}</li>
-                  <li><strong>Role:</strong> {user?.role === 'librarian' ? 'Librarian (Full Access)' : 'User (Read Only)'}</li>
-                </ul>
-              </div>
-            </div>
-
-            {user?.role === 'librarian' ? (
-              <div className="alert alert-info">
-                <h4>📚 Librarian Features Available:</h4>
-                <ul style={{ marginTop: '0.5rem', marginLeft: '1rem' }}>
-                  <li>View all books and categories</li>
-                  <li>Add new books and categories</li>
-                  <li>Edit existing books and categories</li>
-                  <li>Delete books and categories</li>
-                  <li>Manage inventory and stock</li>
-                </ul>
-                <p style={{ marginTop: '1rem' }}>
-                  <em>Book listing and management features are coming in the next phase...</em>
-                </p>
-              </div>
+        {/* Protected Routes - General Dashboard */}
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            {isLibrarian() ? (
+              <LibrarianDashboard 
+                user={user} 
+                onLogout={handleLogout} 
+              />
             ) : (
-              <div className="alert alert-info">
-                <h4>👤 User Features Available:</h4>
-                <ul style={{ marginTop: '0.5rem', marginLeft: '1rem' }}>
-                  <li>View all books and categories</li>
-                  <li>Search and filter books</li>
-                  <li>View book details</li>
-                </ul>
-                <p style={{ marginTop: '1rem' }}>
-                  <em>Book browsing features are coming in the next phase...</em>
-                </p>
-              </div>
+              <UserDashboard 
+                user={user} 
+                onLogout={handleLogout} 
+              />
             )}
+          </ProtectedRoute>
+        } />
 
-            <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-              <h4>🚀 What's Next?</h4>
-              <p>The book management features (CRUD operations, filtering, etc.) will be implemented next.</p>
-              <p>This authentication system is now ready and working perfectly!</p>
-            </div>
-          </div>
-        </div>
-      </main>
+        {/* Librarian-Only Routes */}
+        <Route path="/admin/books" element={
+          <ProtectedRoute requireLibrarian={true}>
+            <LibrarianDashboard user={user} onLogout={handleLogout} defaultView="books" />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/admin/categories" element={
+          <ProtectedRoute requireLibrarian={true}>
+            <LibrarianDashboard user={user} onLogout={handleLogout} defaultView="categories" />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/admin/borrows" element={
+          <ProtectedRoute requireLibrarian={true}>
+            <LibrarianDashboard user={user} onLogout={handleLogout} defaultView="borrows" />
+          </ProtectedRoute>
+        } />
+
+        {/* User Routes */}
+        <Route path="/books" element={
+          <ProtectedRoute>
+            <UserDashboard user={user} onLogout={handleLogout} defaultView="browse" />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/my-books" element={
+          <ProtectedRoute>
+            <UserDashboard user={user} onLogout={handleLogout} defaultView="mybooks" />
+          </ProtectedRoute>
+        } />
+
+        {/* Root redirect */}
+        <Route path="/" element={
+          isAuthenticated() ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
+        } />
+
+        {/* Catch all - redirect to dashboard or login */}
+        <Route path="*" element={
+          isAuthenticated() ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
+        } />
+      </Routes>
     </div>
+  );
+}
+
+// Main App component with BrowserRouter
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   );
 }
 
