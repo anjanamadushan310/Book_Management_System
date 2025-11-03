@@ -8,6 +8,8 @@ import {
   Delete,
   ValidationPipe,
   UseGuards,
+  ParseIntPipe,
+  BadRequestException,
 } from '@nestjs/common';
 import { BookCategoriesService } from './book-categories.service';
 import { CreateBookCategoryDto, UpdateBookCategoryDto } from '../dto/book-category.dto';
@@ -34,24 +36,24 @@ export class BookCategoriesController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.bookCategoriesService.findOne(+id);
+  findOne(@Param('id', new ParseIntPipe({ errorHttpStatusCode: 400, exceptionFactory: () => new BadRequestException('Invalid category ID format') })) id: number) {
+    return this.bookCategoriesService.findOne(id);
   }
 
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.LIBRARIAN)
   update(
-    @Param('id') id: string,
+    @Param('id', new ParseIntPipe({ errorHttpStatusCode: 400, exceptionFactory: () => new BadRequestException('Invalid category ID format') })) id: number,
     @Body(ValidationPipe) updateBookCategoryDto: UpdateBookCategoryDto,
   ) {
-    return this.bookCategoriesService.update(+id, updateBookCategoryDto);
+    return this.bookCategoriesService.update(id, updateBookCategoryDto);
   }
 
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.LIBRARIAN)
-  remove(@Param('id') id: string) {
-    return this.bookCategoriesService.remove(+id);
+  remove(@Param('id', new ParseIntPipe({ errorHttpStatusCode: 400, exceptionFactory: () => new BadRequestException('Invalid category ID format') })) id: number) {
+    return this.bookCategoriesService.remove(id);
   }
 }

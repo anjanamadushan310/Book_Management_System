@@ -8,6 +8,8 @@ import { AuthModule } from './auth/auth.module';
 import { SeedModule } from './seed/seed.module';
 import { BooksModule } from './books/books.module';
 import { BookCategoriesModule } from './book-categories/book-categories.module';
+import { BorrowModule } from './borrow/borrow.module';
+import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [
@@ -19,10 +21,12 @@ import { BookCategoriesModule } from './book-categories/book-categories.module';
       useFactory: typeOrmConfigFactory,
       inject: [ConfigService],
     }),
+    CommonModule,
     AuthModule,
     SeedModule,
     BooksModule,
     BookCategoriesModule,
+    BorrowModule,
   ],
   controllers: [AppController],
   providers: [AppService],
